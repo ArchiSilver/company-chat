@@ -1,35 +1,34 @@
 package repository
 
 import (
-    "context"
-    "fmt"
-    "log"
+	"context"
+	"fmt"
 
-    "github.com/jackc/pgx/v5/pgxpool"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-// DB представляет пул соединений к базе данных
+// DB представляет пул соединений
 type DB struct {
-    Pool *pgxpool.Pool
+	Pool *pgxpool.Pool
 }
 
-// NewDB создает новое подключение к базе данных
-func NewDB(connectionString string) (*DB, error) {
-    pool, err := pgxpool.New(context.Background(), connectionString)
-    if err != nil {
-        return nil, fmt.Errorf("не удалось подключиться к БД: %w", err)
-    }
+// NewDB инициализирует пул соединений
+func NewDB(conn string) (*DB, error) {
+	pool, err := pgxpool.New(context.Background(), conn)
+	if err != nil {
+		return nil, fmt.Errorf("pgxpool.New: %w", err)
+	}
 
-    // Проверим подключение
-    if err := pool.Ping(context.Background()); err != nil {
-        return nil, fmt.Errorf("не удалось проверить подключение: %w", err)
-    }
+	if err := pool.Ping(context.Background()); err != nil {
+		return nil, fmt.Errorf("ping: %w", err)
+	}
 
-    log.Println("✅ Успешное подключение к PostgreSQL")
-    return &DB{Pool: pool}, nil
+	return &DB{Pool: pool}, nil
 }
 
-// Close закрывает соединение с БД
-func (db *DB) Close() {
-    db.Pool.Close()
+// Close закрывает пул
+func (d *DB) Close() {
+	if d.Pool != nil {
+		d.Pool.Close()
+	}
 }

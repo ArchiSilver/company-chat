@@ -1,42 +1,58 @@
 package main
 
 import (
-    "context"
-    "database/sql"
-    "fmt"
-    "log"
-    "os"
+	"context"
+	"database/sql"
+	"fmt"
+	"io/fs"
+	"os"
+	"path/filepath"
 
-    _ "github.com/jackc/pgx/v5/stdlib"
+	_ "github.com/jackc/pgx/v5/stdlib"
+
+	"company-chat/internal/config"
+	"company-chat/internal/logging"
 )
 
 func main() {
-    // Подключение к базе данных
-    db, err := sql.Open("pgx", "postgres://app:password@localhost:5432/app?sslmode=disable")
-    if err != nil {
-        log.Fatal("Ошибка подключения к БД:", err)
-    }
-    defer db.Close()
+	cfg := config.LoadConfig()
+	// init logger for migrate tool
+	logging.Init(false)
+	defer logging.Sync()
 
-    // Проверка подключения
-    if err := db.Ping(); err != nil {
-        log.Fatal("Не удалось подключиться к БД:", err)
-    }
+	db, err := sql.Open("pgx", cfg.GetDBConnectionString())
+	if err != nil {
+		logging.L.Fatalf("open db: %v", err)
+	}
+	defer db.Close()
 
-    // Чтение SQL файла
-    sqlBytes, err := os.ReadFile("migrations/001_create_users.up.sql")
-    if err != nil {
-        log.Fatal("Не удалось прочитать файл миграции:", err)
-    }
+	migDir := "migrations"
+	entries := []string{}
+	err = filepath.WalkDir(migDir, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() {
+			return nil
+		}
+		if filepath.Ext(path) == ".sql" && filepath.Base(path)[len(filepath.Base(path))-7:] == ".up.sql" {
+			entries = append(entries, path)
+		}
+		return nil
+	})
+	if err != nil {
+		logging.L.Fatalf("walk migrations: %v", err)
+	}
 
-    sqlString := string(sqlBytes)
-
-    // Выполнение миграции
-    _, err = db.ExecContext(context.Background(), sqlString)
-    if err != nil {
-        log.Fatal("Ошибка выполнения миграции:", err)
-    }
-
-    fmt.Println("✅ Миграция успешно выполнена!")
-    fmt.Println("✅ Таблица 'users' создана")
+	for _, f := range entries {
+		logging.L.Infof("applying migration: %s", f)
+		b, err := os.ReadFile(f)
+		if err != nil {
+			logging.L.Fatalf("read %s: %v", f, err)
+		}
+		if _, err := db.ExecContext(context.Background(), string(b)); err != nil {
+			logging.L.Fatalf("exec migration %s: %v", f, err)
+		}
+	}
+	fmt.Println("✅ Миграции применены")
 }

@@ -1,0 +1,76 @@
+openapi: 3.0.0
+info:
+  title: Company Chat API
+  version: 0.1.0
+  description: Minimal OpenAPI spec for Company Chat MVP
+servers:
+  - url: http://localhost:8080
+paths:
+  /api/auth/register:
+    post:
+      summary: Register a new user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                username:
+                  type: string
+                password:
+                  type: string
+      responses:
+        '201':
+          description: Created
+  /api/auth/login:
+    post:
+      summary: Log in and receive access token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                password:
+                  type: string
+      responses:
+        '200':
+          description: OK
+  /api/chats:
+    post:
+      summary: Create a chat
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                type:
+                  type: string
+      responses:
+        '201':
+          description: Created
+  /ws:
+    get:
+      summary: WebSocket endpoint (use token & chat_id as query params)
+      parameters:
+        - name: token
+          in: query
+          schema:
+            type: string
+        - name: chat_id
+          in: query
+          schema:
+            type: string
+      responses:
+        '101':
+          description: Switching Protocols
