@@ -50,4 +50,3 @@ Production notes:
 - `internal/repository` — слой доступа к БД
 - `migrations/` — SQL миграции
 
-Следующие шаги: создайте ветку `feature/bootstrap-001`, сделайте коммит и пуш. После этого перейдём к Day 2 (вынесение конфига и graceful shutdown).
