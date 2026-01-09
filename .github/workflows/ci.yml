@@ -1,0 +1,122 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, master, finish/full ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: app
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: app
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U app" --health-interval=10s --health-timeout=5s --health-retries=5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.24'
+
+      - name: Install golangci-lint
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $GOPATH/bin v1.59.0
+
+      - name: Check formatting
+        run: gofmt -l . | tee /tmp/gofmt.txt && test ! -s /tmp/gofmt.txt
+
+      - name: Run linters
+        run: golangci-lint run ./...
+
+      - name: Wait for Postgres
+        run: |
+          for i in {1..30}; do
+            pg_isready -h localhost -p 5432 -U app && break || sleep 1
+          done
+
+      - name: Apply migrations
+        run: |
+          # best-effort: run migrate if cmd/migrate exists
+          if [ -d cmd/migrate ]; then
+            go run ./cmd/migrate || true
+          fi
+
+      - name: Run tests
+        env:
+          DATABASE_URL: postgres://app:password@localhost:5432/app?sslmode=disable
+        run: go test ./... -v
+name: CI
+
+on:
+  push:
+    branches: [ main, backup-before-clean ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_DB: app
+          POSTGRES_USER: app
+          POSTGRES_PASSWORD: password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready -U app -d app
+          --health-interval 10s --health-timeout 5s --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.24'
+      - name: Get dependencies
+        run: go mod download
+      - name: Wait for Postgres
+        run: |
+          for i in {1..10}; do
+            pg_isready -h 127.0.0.1 -p 5432 -U app && break || sleep 2
+          done
+        env:
+          PGPASSWORD: password
+      - name: Install golangci-lint
+        uses: golangci/golangci-lint-action@v3
+        with:
+          version: v1.59.0
+      - name: Run golangci-lint
+        run: golangci-lint run ./...
+      - name: Run go vet
+        run: go vet ./...
+      - name: Run migrations
+        run: |
+          export DB_HOST=127.0.0.1
+          export DB_PORT=5432
+          export DB_USER=app
+          export DB_PASSWORD=password
+          export DB_NAME=app
+          go run ./cmd/migrate
+      - name: Run tests
+        env:
+          DB_HOST: 127.0.0.1
+          DB_PORT: 5432
+          DB_USER: app
+          DB_PASSWORD: password
+          DB_NAME: app
+        run: go test ./... -v
+      - name: Build
+        run: go build ./...

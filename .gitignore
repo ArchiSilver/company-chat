@@ -1,28 +1,27 @@
-# Binaries
-company-chat
+# Binaries for programs and plugins
+bin/
 *.exe
 *.exe~
 *.dll
 *.so
 *.dylib
 
-# Go
-bin/
-pkg/
+# Test binary, built with `go test -c`
+*.test
 
-# IDE
+# Output of the go coverage tool
+*.out
+
+# Dependency directories (remove the comment below to include vendor)
+vendor/
+
+# IDEs and editors
 .vscode/
 .idea/
-*.swp
-*.swo
+*.iml
 
-# OS
+# macOS
 .DS_Store
-Thumbs.db
-
-# Environment variables
-.env
-.env.local
 
 # Logs
 *.log

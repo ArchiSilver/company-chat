@@ -1,0 +1,39 @@
+<!doctype html>
+<html>
+
+<head>
+    <meta charset="utf-8" />
+    <title>Company Chat WS Demo</title>
+</head>
+
+<body>
+    <h1>WebSocket Test</h1>
+    <label>Chat ID: <input id="chat" value="" /></label><br />
+    <label>Token: <input id="token" value="" style="width:600px" /></label><br />
+    <button id="connect">Connect</button>
+    <pre id="log"></pre>
+    <input id="msg" placeholder="message" style="width:600px" /><button id="send">Send</button>
+
+    <script>
+        let ws;
+        const log = (t) => { const p = document.getElementById('log'); p.textContent += t + "\n" }
+        document.getElementById('connect').onclick = () => {
+            const chat = document.getElementById('chat').value
+            const token = document.getElementById('token').value
+            if (!chat || !token) { alert('chat and token required'); return }
+            const url = `ws://${location.host}/ws?chat_id=${encodeURIComponent(chat)}&token=${encodeURIComponent(token)}`
+            ws = new WebSocket(url)
+            ws.onopen = () => log('connected')
+            ws.onmessage = (ev) => log('recv: ' + ev.data)
+            ws.onclose = () => log('closed')
+            ws.onerror = (e) => log('error')
+        }
+        document.getElementById('send').onclick = () => {
+            const m = document.getElementById('msg').value
+            if (ws && ws.readyState === 1) { ws.send(JSON.stringify({ type: 'message', content: m })) }
+            else alert('not connected')
+        }
+    </script>
+</body>
+
+</html>
