@@ -426,6 +426,10 @@ func main() {
 				httputil.JSONError(w, http.StatusInternalServerError, "internal error")
 				return
 			}
+			// Make creator a participant so they can immediately connect via WS
+			if _, err := db.Pool.Exec(r.Context(), "INSERT INTO chat_participants (chat_id, user_id) VALUES ($1,$2) ON CONFLICT DO NOTHING", c.ID, uid); err != nil {
+				logging.L.Warnf("could not add chat participant: %v", err)
+			}
 			httputil.JSON(w, http.StatusCreated, c)
 			return
 		}

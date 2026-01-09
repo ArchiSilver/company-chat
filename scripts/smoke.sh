@@ -52,4 +52,17 @@ else
   echo "  websocat 'ws://localhost:8080/ws?token=$TOKEN&chat_id=$CHAT'"
 fi
 
+# Try Go WS client if available (non-interactive). This will attempt to send a message
+if [ -f "scripts/ws_smoke.go" ]; then
+  echo "Running Go WS client..."
+  if go version >/dev/null 2>&1; then
+    go run scripts/ws_smoke.go -token "$TOKEN" -chat "$CHAT" || echo "Go WS client finished with non-fatal error"
+  else
+    echo "go not available; skipping Go WS client"
+  fi
+fi
+
+echo "Check metrics after WS (filtered):"
+curl -s $BASE/metrics | grep company_chat_messages_total -n || true
+
 echo "Smoke finished"
