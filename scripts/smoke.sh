@@ -1,0 +1,55 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+BASE="http://localhost:8080"
+
+echo "Starting smoke test against $BASE"
+
+# register (ignore errors if exists)
+curl -s -X POST "$BASE/api/auth/register" -H "Content-Type: application/json" \
+  -d '{"email":"smoke+test@example.com","username":"smoke","password":"pass123"}' || true
+
+echo "Login..."
+TOKEN=$(curl -s -X POST "$BASE/api/auth/login" -H "Content-Type: application/json" \
+  -d '{"email":"smoke+test@example.com","password":"pass123"}' | grep -o '"access_token"[^,}]*' | sed -E 's/.*:"([^"]+)"/\1/')
+
+if [ -z "$TOKEN" ]; then
+  echo "Failed to obtain token; full response:"
+  curl -s -X POST "$BASE/api/auth/login" -H "Content-Type: application/json" \
+    -d '{"email":"smoke+test@example.com","password":"pass123"}' || true
+  exit 1
+fi
+
+echo "Token obtained (len=${#TOKEN})"
+
+echo "Create chat..."
+CHAT=$(curl -s -X POST "$BASE/api/chats" -H "Content-Type: application/json" -H "Authorization: Bearer $TOKEN" \
+  -d '{"name":"smoke-room","type":"room"}' | grep -o '"id"[^,}]*' | sed -E 's/.*:"?([^"]+)"?/\1/')
+
+if [ -z "$CHAT" ]; then
+  echo "Failed to create chat; response:"
+  curl -s -X POST "$BASE/api/chats" -H "Content-Type: application/json" -H "Authorization: Bearer $TOKEN" \
+    -d '{"name":"smoke-room","type":"room"}'
+  exit 1
+fi
+
+echo "Chat id: $CHAT"
+
+echo "Post REST message..."
+curl -s -X POST "$BASE/api/chats/$CHAT/messages" -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"content":"hello from REST smoke"}' | jq || true
+
+echo "Metrics snapshot (filtered):"
+curl -s $BASE/metrics | grep company_chat_messages_total -n || true
+
+echo "Done REST part. Now attempt WebSocket smoke (non-interactive)..."
+
+if command -v websocat >/dev/null 2>&1; then
+  echo "websocat found; performing simple ws send"
+  printf '{"type":"message","content":"hello from websocat"}\n' | websocat -1 "ws://localhost:8080/ws?token=$TOKEN&chat_id=$CHAT"
+else
+  echo "websocat not installed; skipping interactive ws step. You can run:"
+  echo "  websocat 'ws://localhost:8080/ws?token=$TOKEN&chat_id=$CHAT'"
+fi
+
+echo "Smoke finished"
