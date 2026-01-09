@@ -71,19 +71,30 @@ func RegisterWithOptions(enablePerChat bool) {
 		// already registered in this process, skip
 		return
 	}
-	prometheus.MustRegister(MessagesSent)
-	prometheus.MustRegister(MessageSize)
-	prometheus.MustRegister(ErrorsTotal)
-	prometheus.MustRegister(RequestsTotal)
-	prometheus.MustRegister(RequestDuration)
-	prometheus.MustRegister(ActiveWSConnections)
+	// register collectors but ignore AlreadyRegisteredError
+	tryRegister := func(c prometheus.Collector) {
+		if err := prometheus.DefaultRegisterer.Register(c); err != nil {
+			if _, ok := err.(prometheus.AlreadyRegisteredError); ok {
+				// ignore duplicate
+				return
+			}
+			// unexpected error
+			panic(err)
+		}
+	}
+	tryRegister(MessagesSent)
+	tryRegister(MessageSize)
+	tryRegister(ErrorsTotal)
+	tryRegister(RequestsTotal)
+	tryRegister(RequestDuration)
+	tryRegister(ActiveWSConnections)
 	if enablePerChat {
-		prometheus.MustRegister(ActiveWSConnectionsByChat)
+		tryRegister(ActiveWSConnectionsByChat)
 	}
 	enableWSByChat = enablePerChat
 	// стандартные коллекторы
-	prometheus.MustRegister(collectors.NewGoCollector())
-	prometheus.MustRegister(collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}))
+	tryRegister(collectors.NewGoCollector())
+	tryRegister(collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}))
 	registered = true
 }
 
