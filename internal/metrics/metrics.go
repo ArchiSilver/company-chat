@@ -57,6 +57,7 @@ var (
 )
 
 var enableWSByChat bool
+var registered bool
 
 // Register регистрирует метрики. По умолчанию per-chat метрика отключена.
 func Register() {
@@ -66,6 +67,10 @@ func Register() {
 // RegisterWithOptions регистрирует метрики; если enablePerChat=true,
 // будет зарегистрирована метрика ActiveWSConnectionsByChat.
 func RegisterWithOptions(enablePerChat bool) {
+	if registered {
+		// already registered in this process, skip
+		return
+	}
 	prometheus.MustRegister(MessagesSent)
 	prometheus.MustRegister(MessageSize)
 	prometheus.MustRegister(ErrorsTotal)
@@ -79,6 +84,7 @@ func RegisterWithOptions(enablePerChat bool) {
 	// стандартные коллекторы
 	prometheus.MustRegister(collectors.NewGoCollector())
 	prometheus.MustRegister(collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}))
+	registered = true
 }
 
 // WSByChatEnabled возвращает флаг, включена ли метрика по чатам
