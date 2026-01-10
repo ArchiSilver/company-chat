@@ -1,233 +1,283 @@
-```markdown
-# Company Chat — обучающий проект (Backend на Go)
+# Company Chat - Полнофункциональная коммуникационная платформа
 
-Небольшое описание: это учебный репозиторий для разработки корпоративного чат‑сервиса на Go. В проекте присутствуют: HTTP‑сервер, PostgreSQL, аутентификация, WebSocket, загрузки файлов и другие компоненты, которые входят в ваш Roadmap.
+[![React Native](https://img.shields.io/badge/React%20Native-0.83.1-blue.svg)](https://reactnative.dev/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.8.3-blue.svg)](https://www.typescriptlang.org/)
+[![Go](https://img.shields.io/badge/Go-1.21+-00ADD8.svg)](https://golang.org/)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15+-336791.svg)](https://www.postgresql.org/)
 
-Как запустить локально (быстрый старт)
+Company Chat - это полнофункциональная коммуникационная платформа, включающая веб-приложение, мобильное приложение и бэкенд API. Проект разработан для корпоративного использования с современным интерфейсом и высокой производительностью.
 
-1. Быстрый запуск через Make (если настроено):
+## 📁 Структура проекта
 
-```zsh
-make run
+```
+company-chat/
+├── cmd/                    # Исполняемые файлы
+│   ├── app/               # Основное веб-приложение
+│   └── migrate/           # Миграции базы данных
+├── internal/              # Внутренняя логика (Go)
+│   ├── config/           # Конфигурация
+│   ├── domain/           # Бизнес-логика
+│   ├── handlers/         # HTTP обработчики
+│   └── repository/       # Работа с БД
+├── migrations/           # SQL миграции
+├── web/                  # Веб-интерфейс (React)
+├── mobile/               # Мобильное приложение (React Native)
+├── EventyOn/             # Отдельное мобильное приложение
+├── desktop/              # Десктопные приложения (Electron)
+├── scripts/              # Скрипты разработки
+└── docs/                 # Документация
 ```
 
-2. Полезные цели Makefile:
+## 🚀 Быстрый старт
 
-```zsh
-make run            # запустить приложение локально
-make docker-build   # собрать Docker-образ
-make test           # прогнать тесты
-```
+### Предварительные требования
 
-3. Быстрая разработка с Docker Compose:
+- **Go 1.21+**
+- **Node.js 20+**
+- **PostgreSQL 15+**
+- **Android Studio** (для мобильной разработки)
+- **Xcode** (для iOS разработки)
 
+### Установка и запуск
+
+1. **Клонировать репозиторий:**
+   ```bash
+   git clone https://github.com/ArchiSilver/company-chat.git
+   cd company-chat
+   ```
+
+2. **Настроить бэкенд:**
+   ```bash
+   # Установить зависимости
+   go mod download
+
+   # Запустить PostgreSQL (через Docker)
+   make postgres
+
+   # Запустить миграции
+   make migrate-up
+
+   # Запустить сервер
+   make run
+   ```
+
+3. **Настроить веб-приложение:**
+   ```bash
+   cd web
+   npm install
+   npm run dev
+   ```
+
+4. **Настроить мобильное приложение:**
+   ```bash
+   cd mobile
+   npm install
+   npm start
+   # В новом терминале:
+   npm run android  # или npm run ios
+   ```
+
+## 📱 Мобильные приложения
+
+### EventyOn Messenger
+
+Современное мобильное приложение для мгновенного обмена сообщениями с элегантным интерфейсом.
+
+#### Особенности:
+- 🎨 **Современный дизайн** с фиолетовой цветовой схемой (#8A2BE2)
+- 📱 **Кроссплатформенность** (iOS/Android)
+- 🔐 **Регистрация** по телефону или email
+- 💬 **Мессенджер** в стиле Telegram
+- ⚡ **Быстрая навигация** между чатами
+- 🌙 **Адаптивный интерфейс**
+
+#### Технологии:
+- **React Native 0.83.1**
+- **TypeScript**
+- **React Navigation**
+- **React Native Paper**
+- **AsyncStorage**
+
+#### Запуск EventyOn:
 ```bash
-docker compose up -d
-make migrate
-make run
-```
-
-Обязательные переменные окружения (пример):
-
-```bash
-export DATABASE_URL='postgres://app:password@localhost:5432/app?sslmode=disable'
-export JWT_SECRET='dev-secret'
-# Включить per-chat WS метрику (по умолчанию выключена):
-export METRICS_WS_BY_CHAT=0
-```
-
-Production — заметки безопасности
-- Храните `JWT_SECRET` в безопасном хранилище (Vault, Secrets Manager). Для контейнеров поддерживается `JWT_SECRET_FILE`.
-- Для production используйте внешний rate limiter / API gateway; встроенный in-memory rate limiter подходит только для разработки или мелких развёртываний.
-- Обязательно настройте TLS и reverse proxy (nginx, Caddy) перед приложением.
-
-Структура проекта
-- `cmd/` — исполняемые пакеты (app, migrate и т.д.)
-- `internal/config` — конфигурация
-- `internal/domain` — доменные модели
-- `internal/repository` — слой доступа к базе данных
-- `migrations/` — SQL‑миграции
-
-Рекомендации по локальному запуску (рекомендуется Docker)
------------------------------------------------------
-
-Требования (один из вариантов):
-- Docker & Docker Compose (рекомендуется)
-- Локальная среда: Go 1.20+, PostgreSQL, Node.js/npm (если вы хотите запускать Electron‑оболочку)
-
-Quickstart с Docker
-1. Соберите и запустите сервисы (Postgres + приложение). Контейнер выполнит миграции перед стартом сервера:
-
-```zsh
-docker compose build --pull
-docker compose up -d
-```
-
-2. Просмотрите логи и дождитесь готовности сервера:
-
-```zsh
-docker compose logs -f app
-```
-
-3. Откройте UI в браузере (если он присутствует) или обращайтесь к API по адресу:
-
-http://localhost:8080
-
-Локальная разработка без Docker
---------------------------------
-1. На macOS можно установить зависимости через Homebrew:
-
-```zsh
-brew install go postgresql node
-# запустите postgres и создайте БД/пользователя в соответствии с конфигом или установите переменные окружения
-brew services start postgresql
-```
-
-2. Примените миграции:
-
-```zsh
-make migrate
-```
-
-3. Запустите сервер:
-
-```zsh
-go run ./cmd/app
-```
-
-4. Опционально: запустите Electron desktop (требуется Node.js):
-
-```zsh
-cd desktop/electron
-npm ci
+cd EventyOn
+npm install
 npm start
+# В новом терминале:
+npx react-native run-android
 ```
 
-Визуальное тестирование
------------------------
-- В репозитории есть статический веб‑интерфейс, который используется оболочкой Electron: `desktop/electron/public/index.html`. Для быстрой проверки можно открыть этот файл в браузере и убедиться, что API доступен по `http://localhost:8080`.
-- Для точного пользовательского опыта запустите Electron (`npm start`) или соберите инсталляторы через `npm run dist` (требуется electron‑builder и соответствующая среда для сборки).
+### Company Chat Mobile
 
-Дальнейшие улучшения (по запросу)
-- могу добавить скрипт, который автоматически откроет браузер на UI после поднятия контейнеров;
-- могу подготовить Docker‑образ для визуального предпросмотра в CI;
-- могу реализовать транзакционную логику загрузки (временный файл + запись в БД) для предотвращения «осиротевших» файлов.
+Полнофункциональное мобильное приложение для корпоративного общения.
 
-```
-# Company Chat — проект для обучения Backend (Go)
+#### Особенности:
+- 👥 **Управление пользователями**
+- 💼 **Корпоративные чаты**
+- 📎 **Отправка файлов**
+- 🔒 **Аутентификация**
+- 📊 **Статистика сообщений**
 
-Коротко: это учебный репозиторий для разработки корпоративного чата на Go. В нём реализуются шаги из вашего Roadmap: HTTP-сервер, PostgreSQL, аутентификация, WebSocket и т.д.
+## 🖥️ Веб-приложение
 
+### Технологии:
+- **React 18**
+- **TypeScript**
+- **Vite**
+- **Tailwind CSS**
+- **WebSocket** для real-time обновлений
 
-Как запустить локально (быстрый старт)
-
-1. Сборка/запуск:
-
-```zsh
-make run
-```
-
-2. Полезные Make цели:
-
-```zsh
-make run    # запустить приложение
-make docker-build  # собрать образ локально
-make test   # прогнать тесты
-```
-
-3. Быстрый dev с docker-compose:
-
+### Запуск:
 ```bash
+cd web
+npm install
+npm run dev
+```
+
+## 🗄️ Бэкенд API
+
+### Технологии:
+- **Go 1.21+**
+- **Gin** (HTTP фреймворк)
+- **PostgreSQL** (база данных)
+- **Redis** (кэширование)
+- **WebSocket** (real-time коммуникация)
+- **JWT** (аутентификация)
+
+### API Endpoints:
+
+#### Аутентификация:
+- `POST /api/auth/login` - Вход
+- `POST /api/auth/register` - Регистрация
+- `POST /api/auth/refresh` - Обновление токена
+
+#### Чаты:
+- `GET /api/chats` - Список чатов
+- `POST /api/chats` - Создать чат
+- `GET /api/chats/:id/messages` - Сообщения чата
+- `POST /api/chats/:id/messages` - Отправить сообщение
+
+#### Пользователи:
+- `GET /api/users` - Список пользователей
+- `GET /api/users/:id` - Информация о пользователе
+- `PUT /api/users/:id` - Обновить профиль
+
+## 🐳 Docker
+
+### Быстрый запуск с Docker:
+```bash
+# Запустить все сервисы
 docker-compose up -d
-make migrate
-make run
+
+# Посмотреть логи
+docker-compose logs -f
 ```
 
-Обязательные переменные окружения (примеры):
+### Сервисы:
+- **app**: Go веб-сервер (порт 8080)
+- **postgres**: PostgreSQL база данных (порт 5432)
+- **redis**: Redis кэш (порт 6379)
 
+## 📊 База данных
+
+### Структура:
+- **users**: Пользователи системы
+- **chats**: Чаты и группы
+- **messages**: Сообщения
+- **uploads**: Загруженные файлы
+
+### Миграции:
 ```bash
-export DATABASE_URL='postgres://app:password@localhost:5432/app?sslmode=disable'
-export JWT_SECRET='dev-secret'
-# Включить per-chat WS метрику (по умолчанию выключена):
-export METRICS_WS_BY_CHAT=0
+# Применить миграции
+make migrate-up
+
+# Откатить миграции
+make migrate-down
 ```
 
-Production notes:
-- Храните `JWT_SECRET` безопасно (Vault or secrets manager). `JWT_SECRET_FILE` поддерживается для контейнеров.
-- Для prod используйте внешние rate limiters / API gateway; встроенный in-memory rate limiter служит только для dev/small deployments.
-- Настройте TLS / reverse proxy (nginx, Caddy) перед приложением.
+## 🧪 Тестирование
 
+### Запуск тестов:
+```bash
+# Unit тесты
+make test
 
-3. Структура проекта:
+# Integration тесты
+make test-integration
 
-- `cmd/` — исполняемые пакеты (app, migrate и т.д.)
-- `internal/config` — конфигурация
-- `internal/domain` — доменные модели
-- `internal/repository` — слой доступа к БД
-- `migrations/` — SQL миграции
-
-Run locally (recommended using Docker)
-------------------------------------
-
-Prerequisites (choose one):
-
-- Docker & Docker Compose (recommended) — macOS: https://docs.docker.com/desktop/install/mac-install/
-- OR local toolchain: Go 1.20+, PostgreSQL, Node.js/npm (for the Electron desktop wrapper)
-
-Quickstart with Docker
-1. Build and start services (Postgres + app). The container will run migrations before starting the server:
-
-```zsh
-docker compose build --pull
-docker compose up -d
+# E2E тесты
+make test-e2e
 ```
 
-2. Check logs and wait for the server to be ready:
-
-```zsh
-docker compose logs -f app
+### Мобильное тестирование:
+```bash
+cd mobile
+npm test
 ```
 
-3. Open the UI in a browser (server serves a web client at /web if present) or access the API at:
+## 📦 Сборка и развертывание
 
-http://localhost:8080
-
-Local dev without Docker
-------------------------
-1. Install prerequisites on macOS (Homebrew):
-
-```zsh
-brew install go postgresql node
-# start postgres, create DB/user as configured in internal/config defaults or set env vars
-brew services start postgresql
+### Сборка бэкенда:
+```bash
+make build
 ```
 
-2. Apply migrations:
-
-```zsh
-make migrate
+### Сборка мобильного приложения:
+```bash
+cd mobile
+npm run build:android  # или build:ios
 ```
 
-3. Run the server:
-
-```zsh
-go run ./cmd/app
+### Docker сборка:
+```bash
+docker build -t company-chat .
 ```
 
-4. Run the Electron desktop (optional, requires Node):
+## 🔧 Разработка
 
-```zsh
-cd desktop/electron
-npm ci
-npm start
+### Скрипты:
+- `make dev` - Запуск в режиме разработки
+- `make dev-mobile` - Разработка мобильного приложения
+- `scripts/dev-up.sh` - Полный запуск всех сервисов
+- `scripts/preview.sh` - Предпросмотр веб-приложения
+
+### Переменные среды:
+```bash
+# .env файл
+DATABASE_URL=postgres://user:password@localhost:5432/companychat
+REDIS_URL=redis://localhost:6379
+JWT_SECRET=your-secret-key
 ```
 
-Notes about visual testing
---------------------------
-- The repository contains a static web UI used by the Electron wrapper at `desktop/electron/public/index.html`. For a quick visual, you can open the web UI in a browser if the server serves it under `/web/` (or open `desktop/electron/public/index.html` directly in a browser while the API is running at http://localhost:8080 — the UI will use `localStorage.api_base` or fallback to `http://localhost:8080`).
-- To see the desktop experience exactly as end-users will, run the Electron dev flow above (npm start) or build installers with `npm run dist` (requires electron-builder and appropriate build environment per OS).
+## 🤝 Вклад в проект
 
-If you'd like, I can:
-- add a tiny script to start the browser pointing at the UI automatically after the container is up, or
-- prepare an Electron desktop dev image (for remote CI preview), or
-- implement the transactional upload flow (temp file + pending DB record) to avoid orphan files.
+1. Форкните репозиторий
+2. Создайте ветку для вашей фичи (`git checkout -b feature/AmazingFeature`)
+3. Зафиксируйте изменения (`git commit -m 'Add some AmazingFeature'`)
+4. Запушьте в ветку (`git push origin feature/AmazingFeature`)
+5. Откройте Pull Request
+
+## 📝 Лицензия
+
+Этот проект лицензирован под MIT License - смотрите файл [LICENSE](LICENSE) для деталей.
+
+## 👥 Авторы
+
+- **ArchiSilver** - *Основной разработчик*
+
+## 🙏 Благодарности
+
+- React Native Community
+- Gin Web Framework
+- PostgreSQL Community
+- Все контрибьюторы проекта
+
+## 📞 Контакты
+
+- **Email**: archisilver@example.com
+- **GitHub**: [@ArchiSilver](https://github.com/ArchiSilver)
+- **LinkedIn**: [ArchiSilver](https://linkedin.com/in/archisilver)
+
+---
+
+⭐ **Если проект вам понравился, поставьте звезду!** ⭐
