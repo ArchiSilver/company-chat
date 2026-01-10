@@ -5,6 +5,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
+
 	"company-chat/internal/config"
 )
 
@@ -39,8 +41,16 @@ func TestRefreshTokenRepositoryIntegration(t *testing.T) {
 	repo := NewRefreshTokenRepository(db)
 	ctx := context.Background()
 	token := "integration-test-token"
-	userID := "integration-user-1"
+	userID := uuid.New().String()
 	expires := time.Now().Add(1 * time.Hour)
+
+	// ensure a user row exists for the FK constraint
+	if _, err := db.Pool.Exec(ctx, "INSERT INTO users (id, email, username, password_hash) VALUES ($1,$2,$3,$4)", userID, "integration+user@example.com", "integration_user", "hash"); err != nil {
+		t.Fatalf("failed to insert user for integration test: %v", err)
+	}
+	defer func() {
+		_, _ = db.Pool.Exec(ctx, "DELETE FROM users WHERE id=$1", userID)
+	}()
 
 	if err := repo.Save(ctx, userID, token, expires); err != nil {
 		t.Fatalf("save: %v", err)

@@ -42,7 +42,13 @@ curl -s -X POST "$BASE/api/chats/$CHAT/messages" -H "Authorization: Bearer $TOKE
 echo "Metrics snapshot (filtered):"
 curl -s $BASE/metrics | grep company_chat_messages_total -n || true
 
+echo "Listing recent chat_participants (for debugging):"
+psql "postgres://app:password@localhost:5432/app?sslmode=disable" -c "SELECT chat_id, user_id, joined_at FROM chat_participants ORDER BY joined_at DESC LIMIT 10;" || true
+
 echo "Done REST part. Now attempt WebSocket smoke (non-interactive)..."
+
+# small delay to avoid race where WS is attempted before DB writes/participant insertion propagate
+sleep 1
 
 if command -v websocat >/dev/null 2>&1; then
   echo "websocat found; performing simple ws send"

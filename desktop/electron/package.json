@@ -1,0 +1,43 @@
+{
+    "name": "eventyon-desktop",
+    "version": "0.1.0",
+    "description": "EventyOn desktop client (Electron) — test build",
+    "main": "main.js",
+    "scripts": {
+        "start": "electron .",
+        "postinstall": "electron --version || true",
+        "dist": "electron-builder",
+        "build": "npm run dist"
+    },
+    "author": "",
+    "license": "MIT",
+    "devDependencies": {
+        "electron": "^25.0.0",
+        "electron-builder": "^24.0.0"
+    },
+    "build": {
+        "appId": "com.company.eventyon",
+        "productName": "EventyOn",
+        "files": [
+            "**/*"
+        ],
+        "directories": {
+            "buildResources": "build"
+        },
+        "mac": {
+            "target": [
+                "dmg"
+            ]
+        },
+        "win": {
+            "target": [
+                "nsis"
+            ]
+        },
+        "linux": {
+            "target": [
+                "AppImage"
+            ]
+        }
+    }
+}

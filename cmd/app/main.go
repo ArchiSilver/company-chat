@@ -7,12 +7,15 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
+	"strings"
 	"syscall"
 	"time"
 
 	"company-chat/internal/auth"
 	"company-chat/internal/config"
 	"company-chat/internal/domain"
+	"company-chat/internal/handlers"
 	"company-chat/internal/httputil"
 	"company-chat/internal/logging"
 	"company-chat/internal/metrics"
@@ -23,14 +26,22 @@ import (
 	"github.com/go-playground/validator/v10"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
-	"strings"
-
 	"github.com/gorilla/websocket"
 	"golang.org/x/crypto/bcrypt"
 )
 
 func main() {
 	cfg := config.LoadConfig()
+
+	// max upload size (bytes) configurable via env; default 10 MiB
+	var maxUploadSize int64 = 10 << 20
+	if v := os.Getenv("MAX_UPLOAD_BYTES"); v != "" {
+		if parsed, err := strconv.ParseInt(v, 10, 64); err == nil && parsed > 0 {
+			maxUploadSize = parsed
+		} else {
+			logging.L.Warnf("invalid MAX_UPLOAD_BYTES=%s, using default %d", v, maxUploadSize)
+		}
+	}
 
 	// инициализация структурированного логгера
 	isProd := os.Getenv("APP_ENV") == "production"
@@ -45,6 +56,8 @@ func main() {
 	} else {
 		metrics.Register()
 	}
+
+	// uploads handler will be registered later once jwtSecret and getUserID are defined
 
 	mux := http.NewServeMux()
 	mux.Handle("/", metrics.WrapWithRoute("root.hello", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -68,6 +81,9 @@ func main() {
 	msgRepo := repository.NewMessageRepository(db)
 	refreshRepo := repository.NewRefreshTokenRepository(db)
 
+	// repository for uploads (initialized after DB is ready)
+	uploadRepo := repository.NewUploadRepository(db)
+
 	hub := ws.NewHub()
 
 	// валидатор для структур запросов
@@ -75,6 +91,14 @@ func main() {
 
 	// отдача статического веб-клиента
 	mux.Handle("/web/", http.StripPrefix("/web/", http.FileServer(http.Dir("web"))))
+
+	// uploads directory (serve uploaded files)
+	if err := os.MkdirAll("uploads", 0755); err != nil {
+		logging.L.Fatalf("could not create uploads dir: %v", err)
+	}
+	mux.Handle("/uploads/", http.StripPrefix("/uploads/", http.FileServer(http.Dir("uploads"))))
+
+	// ...uploads handler moved below to allow access to jwtSecret/getUserID
 
 	// endpoint метрик
 	mux.Handle("/metrics", promhttp.Handler())
@@ -290,6 +314,9 @@ func main() {
 		}
 		return uid, nil
 	}
+
+	// register uploads handler using central implementation
+	mux.Handle("/api/uploads", metrics.WrapWithRoute("api.uploads", handlers.NewUploadHandler(uploadRepo, maxUploadSize, getUserID)))
 
 	// WebSocket-эндпоинт
 	upgrader := websocket.Upgrader{CheckOrigin: func(r *http.Request) bool { return true }}

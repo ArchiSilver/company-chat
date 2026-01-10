@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="ru">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Company Chat — WS UI</title>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, Arial;
+            padding: 1rem;
+        }
+
+        input,
+        button {
+            padding: .5rem;
+            margin: .25rem 0;
+        }
+
+        #messages {
+            border: 1px solid #ddd;
+            padding: .5rem;
+            height: 300px;
+            overflow: auto;
+            background: #fafafa
+        }
+
+        .msg {
+            padding: .25rem;
+            border-bottom: 1px solid #eee
+        }
+
+        .meta {
+            color: #666;
+            font-size: .9rem
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Company Chat — WebSocket UI</h1>
+    <div>
+        <label>Server (ws): <input id="server" value="ws://localhost:8080/ws" size="40" /></label>
+    </div>
+    <div style="margin-top:.5rem">
+        <h3>Quick auth</h3>
+        <div>
+            <label>Email: <input id="email" placeholder="you@example.com" style="width:40%" /></label>
+        </div>
+        <div>
+            <label>Username: <input id="username" placeholder="username" style="width:30%" /></label>
+        </div>
+        <div>
+            <label>Password: <input id="password" type="password" placeholder="password" style="width:30%" /></label>
+        </div>
+        <div>
+            <button id="auth">Register / Login</button>
+        </div>
+        <div style="margin-top:.5rem">
+            <label>Token: <input id="token" style="width:60%" placeholder="Вставьте access token" /></label>
+        </div>
+        <div>
+            <label>Chat ID: <input id="chat" placeholder="chat id (UUID)" /></label>
+            <button id="createChat">Create chat</button>
+        </div>
+    </div>
+    <div>
+        <button id="connect">Connect</button>
+        <button id="disconnect" disabled>Disconnect</button>
+    </div>
+    <h3>Messages</h3>
+    <div id="messages"></div>
+    <div style="margin-top:.5rem">
+        <input id="txt" placeholder="Type message..." style="width:70%" />
+        <button id="send" disabled>Send</button>
+    </div>
+
+    <script>
+        let ws;
+        const API_BASE = 'http://localhost:8080';
+        const serverEl = document.getElementById('server');
+        const tokenEl = document.getElementById('token');
+        const chatEl = document.getElementById('chat');
+        const authBtn = document.getElementById('auth');
+        const emailEl = document.getElementById('email');
+        const usernameEl = document.getElementById('username');
+        const passwordEl = document.getElementById('password');
+        const createChatBtn = document.getElementById('createChat');
+        const connectBtn = document.getElementById('connect');
+        const disconnectBtn = document.getElementById('disconnect');
+        const sendBtn = document.getElementById('send');
+        const txt = document.getElementById('txt');
+        const messages = document.getElementById('messages');
+
+        function add(msg) {
+            const d = document.createElement('div'); d.className = 'msg'; d.innerHTML = msg; messages.appendChild(d); messages.scrollTop = messages.scrollHeight;
+        }
+
+        connectBtn.addEventListener('click', () => {
+            const token = tokenEl.value.trim();
+            const chat = chatEl.value.trim();
+            if (!token || !chat) { alert('Token и chat id обязательны'); return }
+            const url = `${serverEl.value}?token=${encodeURIComponent(token)}&chat_id=${encodeURIComponent(chat)}`;
+            add('<div class="meta">Connecting to ' + url + '</div>');
+            ws = new WebSocket(url);
+            ws.onopen = () => { add('<div class="meta">Connected</div>'); connectBtn.disabled = true; disconnectBtn.disabled = false; sendBtn.disabled = false; };
+            ws.onmessage = (ev) => { try { const j = JSON.parse(ev.data); add('<div><b>' + (j.from_username || j.user_id || 'server') + '</b>: ' + (j.content || ev.data) + '</div>'); } catch (e) { add('<div>' + ev.data + '</div>') } };
+            ws.onclose = () => { add('<div class="meta">Disconnected</div>'); connectBtn.disabled = false; disconnectBtn.disabled = true; sendBtn.disabled = true; };
+            ws.onerror = (e) => { add('<div class="meta">WebSocket error</div>'); console.error(e); };
+        });
+
+        // Register (best-effort) then login and fill the token field
+        authBtn.addEventListener('click', async () => {
+            const email = emailEl.value.trim();
+            const username = usernameEl.value.trim() || email.split('@')[0];
+            const password = passwordEl.value.trim();
+            if (!email || !password) { alert('Email и пароль обязательны'); return }
+            add('<div class="meta">Registering...</div>');
+            try {
+                await fetch(API_BASE + '/api/auth/register', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, username, password })
+                });
+            } catch (e) {
+                // ignore - user may already exist
+            }
+            add('<div class="meta">Logging in...</div>');
+            try {
+                const resp = await fetch(API_BASE + '/api/auth/login', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password })
+                });
+                const j = await resp.json();
+                if (j && j.access_token) {
+                    tokenEl.value = j.access_token;
+                    add('<div class="meta">Token obtained (len=' + tokenEl.value.length + ')</div>');
+                } else {
+                    add('<div class="meta">Login failed</div>');
+                }
+            } catch (e) {
+                add('<div class="meta">Auth error: ' + e + '</div>');
+            }
+        });
+
+        createChatBtn.addEventListener('click', async () => {
+            const token = tokenEl.value.trim();
+            if (!token) { alert('Сначала получите токен (Register / Login)'); return }
+            const name = prompt('Chat name', 'ui-room') || 'ui-room';
+            add('<div class="meta">Creating chat...</div>');
+            try {
+                const resp = await fetch(API_BASE + '/api/chats', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+                    body: JSON.stringify({ name: name, type: 'room' })
+                });
+                const j = await resp.json();
+                if (j && j.id) {
+                    chatEl.value = j.id;
+                    add('<div class="meta">Chat created: ' + j.id + '</div>');
+                } else {
+                    add('<div class="meta">Create chat failed</div>');
+                }
+            } catch (e) {
+                add('<div class="meta">Create chat error: ' + e + '</div>');
+            }
+        });
+
+        disconnectBtn.addEventListener('click', () => { if (ws) ws.close(); });
+
+        sendBtn.addEventListener('click', () => {
+            const v = txt.value.trim(); if (!v) return; const payload = { type: 'message', content: v }; ws.send(JSON.stringify(payload)); add('<div class="meta">You: ' + v + '</div>'); txt.value = '';
+        });
+    </script>
+</body>
+
+</html>
